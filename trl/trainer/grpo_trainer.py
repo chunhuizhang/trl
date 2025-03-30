@@ -285,6 +285,7 @@ class GRPOTrainer(Trainer):
         callbacks: Optional[list[TrainerCallback]] = None,
         optimizers: tuple[Optional[torch.optim.Optimizer], Optional[torch.optim.lr_scheduler.LambdaLR]] = (None, None),
         peft_config: Optional["PeftConfig"] = None,
+        tools: Optional[list[Union[dict, list[Callable]]]] = None
     ):
         # Args
         if args is None:
@@ -394,6 +395,9 @@ class GRPOTrainer(Trainer):
         # Data collator
         def data_collator(features):  # No data collation is needed in GRPO
             return features
+
+        # tools
+        self.tools = tools
 
         # Training arguments
         self.max_prompt_length = args.max_prompt_length
@@ -679,7 +683,10 @@ class GRPOTrainer(Trainer):
     ) -> dict[str, Union[torch.Tensor, Any]]:
         device = self.accelerator.device
         prompts = [x["prompt"] for x in inputs]
-        prompts_text = [maybe_apply_chat_template(example, self.processing_class)["prompt"] for example in inputs]
+        
+        # prompts_text = [maybe_apply_chat_template(example, self.processing_class)["prompt"] for example in inputs]
+        prompts_text = [maybe_apply_chat_template(example, self.processing_class, tools=self.tools)["prompt"] for example in inputs]
+
         prompt_inputs = self.processing_class(
             text=prompts_text, return_tensors="pt", padding=True, padding_side="left", add_special_tokens=False
         )
